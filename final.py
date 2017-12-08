@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+import numpy as np
+
+
+def gauss_elim(A, pivot=True):
+    """ Perform gaussian elimination on an augmented matrix A
+    
+    Parameters
+    ----------
+    A : np.array
+        Augmented matrix
+    pivot : bool
+        Perform gaussian elimination with pivoting
+        Default: true
+        If false, naive gaussian elimination is performed
+
+    Return
+    ------
+    U : np.array
+        Upper triangular matrix
+    """
+    n, m = A.shape
+    U = A.copy()
+
+    for i in range(0, n):
+
+        if pivot:
+
+            # Find max in this column
+            col = np.fabs(U[i:,i])
+            max_row = i + np.argmax(col)
+
+            # Swap if necessary
+            if max_row != i:
+                swap = True
+                UU = U.copy()
+
+                U[max_row,i:m] = UU[i, i:]
+                U[i,i:m] = UU[max_row, i:]
+
+        # Forward elimination
+        for k in range(i+1, n):
+            c = U[k,i] / U[i,i]
+            for j in range(i, m):
+                U[k,j] -= c * U[i,j]
+
+    return U
+
+
+
+def back_solve(U):
+    """ Solve system of equations contained in upper triangular matrix U
+
+    Parameters
+    ----------
+    U : np.ndarray
+        Augmented matrix U
+
+    Return
+    ------
+    x : np.ndarray
+       numpy 1D array containing the solution for the system 
+    """
+    n = len(U)
+    x = np.zeros(n) 
+    for i in range(n-1, -1, -1):
+        x[i] = U[i,n] / U[i,i]
+        for k in range(i-1, -1, -1):
+            U[k,n] -= U[k,i] * x[i]
+    return x
+
+
+def pivot_matrix(A):
+    """ Build the pivoting matrix for A
+    """
+    m = len(A)
+    M = A.copy() 
+    I = np.identity(m)
+
+    for j in range(m):
+        row = max(range(j, m), key=lambda i: abs(M[i,j]))
+        print(row)
+        if j != row:
+            I[j], I[row] = I[row], I[j]
+
+    return I
+
+
+def LU_decomposition(A, pivot=False):
+    """ Perform LU decomposition using Crout's algorithm
+
+    Parameters
+    ----------
+    A : ndarray
+        Square matrix
+
+    Return
+    ------
+    L, U : ndarray
+        Square matrices s.t. LU = A
+    """
+    n, m = A.shape
+    assert m==n, "LU decomposition is only meant for square matrices!"
+
+    U = np.zeros_like(A)
+    L = np.identity(n)
+
+    if pivot:
+        for j in range(n):
+            for i in range(j+1):
+                s1 = sum(U[k,j] * L[i,k] for k in range(i))
+                U[i,j] = A[i,j] - s1
+
+            for i in range(j, n):
+                s2 =  sum(U[k,j] * L[i,k] for k in range(j))
+                L[i,j] = (A[i,j] - s2) # / U[j,j]
+
+
+            # Find max for partial pivot
+            max_row = j
+            max_entry = np.fabs(U[j,j])
+            for i in range(j+1, n):
+                if np.fabs(L[i,j]) > max_entry:
+                    max_entry = L[i,j]
+                    max_row = i
+
+            # Swap
+            for i in range(j, n):
+                tmp = U[max_row,j]
+                U[max_row,j] = U[i,j]
+                U[i,j] = tmp / U[j,j]
+
+    else:
+
+        for j in range(n):
+            for i in range(j+1):
+                s1 = sum(U[k,j] * L[i,k] for k in range(i))
+                U[i,j] = A[i,j] - s1
+
+            for i in range(j, n):
+                s2 =  sum(U[k,j] * L[i,k] for k in range(j))
+                L[i,j] = (A[i,j] - s2) / U[j,j]
+
+    return L, U
+
+
+
+""" LU Decomposition example """
+C = np.array([[11,9,24,2],
+              [1,5,2,6],
+              [3,17,18,1],
+              [2,5,7,1]], float)
+
+L, U = LU_decomposition(C, pivot=False)
+
+
