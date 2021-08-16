@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
-""" 
-STAT 8060 Assignment 1
-Avery Wiens
-8/2/2017
-Assignment docstring
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Set seed so that every run has the same output.
 np.random.seed(0)   
 
 
@@ -123,7 +115,7 @@ def my_random_exponential(size, beta):
         
     """
     # algorithm
-    uniform = np.random.uniform(0,1,size)
+    uniform = np.random.uniform(0, 1, size)
     sample = [-beta * np.log(1 - i) for i in uniform]
     
     # print observed mean and variance
@@ -558,8 +550,7 @@ discrete = my_discrete_uniform(size=10000, m=5)
 
 
 def my_geometric_slow(size, p):
-    """ Draw random samples from a geometric distribution
-        Use Bernoulli trials
+    """ Draw random samples from a geometric distribution via Bernoulli trials
     
     Parameters
     ----------
