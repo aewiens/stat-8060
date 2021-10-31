@@ -1,92 +1,36 @@
 #!/usr/bin/env python3
+""" STAT 8060 Final
+    Avery Wiens
+    December 8, 2017
+"""
 import numpy as np
+import numpy.random as npr
+import numpy.matlib as ml
 
-
-def gauss_elim(A, pivot=True):
-    """ Perform gaussian elimination on an augmented matrix A
-    
-    Parameters
-    ----------
-    A : np.array
-        Augmented matrix
-    pivot : bool
-        Perform gaussian elimination with pivoting
-        Default: true
-        If false, naive gaussian elimination is performed
-
-    Return
-    ------
-    U : np.array
-        Upper triangular matrix
-    """
-    n, m = A.shape
-    U = A.copy()
-
-    for i in range(0, n):
-
-        if pivot:
-
-            # Find max in this column
-            col = np.fabs(U[i:,i])
-            max_row = i + np.argmax(col)
-
-            # Swap if necessary
-            if max_row != i:
-                swap = True
-                UU = U.copy()
-
-                U[max_row,i:m] = UU[i, i:]
-                U[i,i:m] = UU[max_row, i:]
-
-        # Forward elimination
-        for k in range(i+1, n):
-            c = U[k,i] / U[i,i]
-            for j in range(i, m):
-                U[k,j] -= c * U[i,j]
-
-    return U
-
-
-
-def back_solve(U):
-    """ Solve system of equations contained in upper triangular matrix U
-
-    Parameters
-    ----------
-    U : np.ndarray
-        Augmented matrix U
-
-    Return
-    ------
-    x : np.ndarray
-       numpy 1D array containing the solution for the system 
-    """
-    n = len(U)
-    x = np.zeros(n) 
-    for i in range(n-1, -1, -1):
-        x[i] = U[i,n] / U[i,i]
-        for k in range(i-1, -1, -1):
-            U[k,n] -= U[k,i] * x[i]
-    return x
-
-
-def pivot_matrix(A):
-    """ Build the pivoting matrix for A
-    """
-    m = len(A)
-    M = A.copy() 
+def pivot_matrix(i, A):
+    """ Build the pivoting matrix for A """
+    M = A.copy()
+    m = len(M)
     I = np.identity(m)
 
-    for j in range(m):
-        row = max(range(j, m), key=lambda i: abs(M[i,j]))
-        print(row)
-        if j != row:
-            I[j], I[row] = I[row], I[j]
+    col = np.fabs(M[:,i])
+    row = np.argmax(col)
+    
+    if row != i: 
+        II = I.copy()
+        I[i] = II[row]
+        I[row] = II[i]
 
     return I
 
 
-def LU_decomposition(A, pivot=False):
+############################################################################
+############################ PROBLEM 1 #####################################
+############################################################################
+# Write a function that does LU decomposition of a square matrix A
+
+
+def LUdecomp(A, pivot=False): 
     """ Perform LU decomposition using Crout's algorithm
 
     Parameters
@@ -106,51 +50,149 @@ def LU_decomposition(A, pivot=False):
     L = np.identity(n)
 
     if pivot:
-        for j in range(n):
-            for i in range(j+1):
-                s1 = sum(U[k,j] * L[i,k] for k in range(i))
-                U[i,j] = A[i,j] - s1
+        P = pivot_matrix(0, A)
+        A = P @ A
 
-            for i in range(j, n):
-                s2 =  sum(U[k,j] * L[i,k] for k in range(j))
-                L[i,j] = (A[i,j] - s2) # / U[j,j]
+    for j in range(n):
+        for i in range(j+1):
+            U[i,j] =  A[i,j] 
+            if j > 0:
+                U[i,j] -= sum(U[k,j] * L[i,k] for k in range(i))
+
+        for i in range(j, n):
+            L[i,j] = (A[i,j] - sum(U[k,j] * L[i,k] for k in range(j))) / U[j,j]
 
 
-            # Find max for partial pivot
-            max_row = j
-            max_entry = np.fabs(U[j,j])
-            for i in range(j+1, n):
-                if np.fabs(L[i,j]) > max_entry:
-                    max_entry = L[i,j]
-                    max_row = i
-
-            # Swap
-            for i in range(j, n):
-                tmp = U[max_row,j]
-                U[max_row,j] = U[i,j]
-                U[i,j] = tmp / U[j,j]
-
-    else:
-
-        for j in range(n):
-            for i in range(j+1):
-                s1 = sum(U[k,j] * L[i,k] for k in range(i))
-                U[i,j] = A[i,j] - s1
-
-            for i in range(j, n):
-                s2 =  sum(U[k,j] * L[i,k] for k in range(j))
-                L[i,j] = (A[i,j] - s2) / U[j,j]
-
-    return L, U
+    L -= np.identity(n)
+    return L + U
 
 
 
-""" LU Decomposition example """
-C = np.array([[11,9,24,2],
-              [1,5,2,6],
-              [3,17,18,1],
-              [2,5,7,1]], float)
 
-L, U = LU_decomposition(C, pivot=False)
+############################################################################
+############################ PROBLEM 2 #####################################
+############################################################################
+
+# Write a function that takes the LU decomposition for matrix A and solves the
+# system of equations AX = Y for the vector X. 
 
 
+def LUsolve(B, Y):
+    """ Solve system of equations AX = Y (where B is LU decomposition of A)
+
+    Parameters
+    ----------
+    B : np.array
+        Square matrix corresponding to the LU decomposition of A, with elements
+        of the L matrix below the diagonal and elements of the U matrix above
+        the diagonal
+
+    Y : np.array
+        Column vector Y for which the solution AX = Y is desired
+
+    Return
+    ------
+    x : np.ndarray
+       numpy 1D array containing the solution for the system 
+    """
+
+    n = len(B)
+    U = np.zeros_like(B)
+    L = np.identity(n)
+
+    for i in range(n):
+        for j in range(i):
+            L[i,j] = B[i,j]
+        
+        for k in range(i, n):
+            U[i,k] = B[i,k]
+
+    LL = np.concatenate((L, Y), axis=1)
+    Z = forward_substitute(LL)
+
+    UU = np.concatenate((U, np.array([Z]).T), axis=1)
+    X = back_substitute(UU)
+
+    return X
+
+
+def forward_substitute(L):
+    """ Solve the system of equations contained in a lower triangular, augmented
+        matrix L
+    """
+    m, n = L.shape
+    x = np.zeros(m)
+    for i in range(m):
+        x[i] = L[i, n-1] / L[i,i]
+    for i in range(1, m):
+        x[i] -= sum(L[i,k] * x[k] for k in range(i))
+
+    return x
+
+
+def back_substitute(U):
+    """ Solve the system of equations contained in an upper triangular, 
+        augmented matrix U
+    """
+    n = len(U)
+    x = np.zeros(n) 
+    for i in range(n-1, -1, -1):
+        x[i] = U[i,n] / U[i,i]
+        for k in range(i-1, -1, -1):
+            U[k,n] -= U[k,i] * x[i]
+    return x
+
+
+
+
+# Set seed to make sure my answer is staying the same every time
+np.random.seed(0)
+
+def MakeSeq(begin, end, by):
+    A=[]
+   
+    i=0
+    while (begin+by*i)<end:
+        A.append(begin+by*i)
+        i=i+1
+    return(A)
+
+n=20
+xvals=MakeSeq(-10,10,1)
+yvals=np.mat([4+3*xvals[i]+xvals[i]**2+npr.normal(0,15,1) for i in range(len(xvals))])
+
+#plot
+#plt.scatter(xvals,yvals)
+#plt.show()
+
+
+#make the design matrix:
+X=ml.empty([n,3])
+for i in range(n):
+    X[i,0]=1
+    X[i,1]=xvals[i]
+    X[i,2]=xvals[i]**2
+    
+    
+    
+A=X.T*X
+
+print("----------------------------------------------------")
+print("LU decomposition from my code:")
+print("----------------------------------------------------")
+AA = LUdecomp(A, pivot=False)    # couldn't get pivoting to work
+print(AA)
+print("----------------------------------------------------")
+
+print("----------------------------------------------------")
+print("Parameter estimates by LU decompsition from my code:")
+print("----------------------------------------------------")
+solution = LUsolve(AA, X.T@yvals)
+print(solution)
+print("\n----------------------------------------------------")
+
+print("----------------------------------------------------")
+print("Compare my parameter estimates to numpy solver")
+print("----------------------------------------------------")
+print(np.linalg.solve(A, X.T@yvals), "    :)")
+print("\n----------------------------------------------------")
